@@ -1,0 +1,57 @@
+- name: Create/Delete instance
+  os_server:
+    name: "{{ instance_name }}{{ index }}"
+    image: "{{ instance_image }}"
+    key_name: "{{ instance_key_name }}"
+    flavor: "{{ instance_flavor }}"
+    availability_zone: "{{ availability_zone }}"
+    security_groups: "{{ sec_groups }}"
+    auto_floating_ip: yes
+    wait: yes
+    timeout: 600
+    state: "{{ state }}"
+  register: os_instance
+
+- name: Print instance
+  debug:
+    msg: "Instance {{ instance_name }}{{ index }} has been created. IP address is {{ os_instance.openstack.public_v4 }}"
+  when: os_instance.openstack is defined
+
+- name: Create/Delete volume
+  include_role:
+    name: openstack-volume
+  vars:
+    volume_name: "{{ instance_name }}{{ index }}-vol"
+    volume_size: "{{ vol_size }}"
+  when: vol_size != "0"
+
+- name: Attach volume to instance
+  os_server_volume:
+    server: "{{ instance_name }}{{ index }}"
+    volume: "{{ instance_name }}{{ index }}-vol"
+    wait: true
+    timeout: 600
+  when: vol_size != "0"
+  tags: present
+
+- name: Add instance to ssh config file
+  blockinfile:
+    path: "{{ ssh_config.replace('~', lookup('env','HOME')) }}"
+    marker_begin: "{{ instance_name }}{{ index }} BEGIN"
+    marker_end: "{{ instance_name }}{{ index }} END"
+    create: yes
+    state: "{{ state }}"
+    block: |
+      Host {{ instance_name }}{{ index }} {{ os_instance.openstack.public_v4 }}
+          HostName {{ os_instance.openstack.public_v4 }}
+          IdentityFile {{ instance_private_key_file }}
+          User ubuntu
+          ForwardAgent yes
+  tags: present
+
+- name: Remove instance from ssh config file
+  replace:
+    path: "{{ ssh_config.replace('~', lookup('env','HOME')) }}"
+    regexp: "(# {{ instance_name }}{{ index }} BEGIN ANSIBLE MANAGED BLOCK)(\n.*)+(# {{ instance_name }}{{ index }} END ANSIBLE MANAGED BLOCK)\n"
+    replace: ""
+  tags: absent

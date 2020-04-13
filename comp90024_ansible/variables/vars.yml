@@ -1,0 +1,47 @@
+availability_zone: melbourne-qh2-uom
+instance_flavor: uom.mse.2c9g
+instance_image: afccf48a-9426-4618-86dc-0ceb636f0169
+instance_key_name: cloud_rsa
+instance_public_key_file: ~/.ssh/cloud_rsa.pub
+instance_private_key_file: ~/.ssh/cloud_rsa
+
+proxy: http://wwwproxy.unimelb.edu.au:8000
+
+security_groups:
+  - name: ssh
+    description: "Security group for SSH access"
+    protocol: tcp
+    port_range_min: 22
+    port_range_max: 22
+    remote_ip_prefix: 0.0.0.0/0
+  - name: http
+    description: "Security group for HTTP access"
+    protocol: tcp
+    port_range_min: 80
+    port_range_max: 80
+    remote_ip_prefix: 0.0.0.0/0
+  - name: couchdb
+    description: "Security group for CouchDB access"
+    protocol: tcp
+    port_range_min: 5984
+    port_range_max: 5984
+    remote_ip_prefix: 0.0.0.0/0
+
+instances:
+  - name: couchdb
+    count: 1
+    vol_size: 250
+    security_groups:
+      - ssh
+      - couchdb
+  - name: web
+    count: 1
+    vol_size: 0
+    security_groups:
+      - ssh
+      - http
+  - name: harvester
+    count: 2
+    vol_size: 0
+    security_groups:
+      - ssh

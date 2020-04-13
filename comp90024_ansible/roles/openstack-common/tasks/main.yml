@@ -1,0 +1,61 @@
+- name: Add proxy to /etc/environment
+  become: yes
+  blockinfile:
+    path: /etc/environment
+    create: yes
+    state: present
+    block: |
+      http_proxy="{{ proxy }}"
+      https_proxy="{{ proxy }}"
+      ftp_proxy="{{ proxy }}"
+
+- name: Source /etc/environment
+  become: yes
+  shell: source /etc/environment
+  args:
+    executable: /bin/bash
+
+- name: Install git
+  become: yes
+  apt:
+    name: git
+    update_cache: yes
+    state: latest
+
+- name: Set git http proxy
+  git_config:
+    name: http.proxy
+    value: "{{ proxy }}"
+    scope: global
+
+- name: Enable proxy for ssh git
+  blockinfile:
+    path: "{{ ansible_env.HOME }}/.ssh/config"
+    create: yes
+    state: present
+    block: |
+      Host github.com
+          Hostname ssh.github.com
+          Port 443
+          User git
+          ProxyCommand nc -X connect -x wwwproxy.unimelb.edu.au:8000 %h %p
+
+- name: Add git to known_hosts
+  become: yes
+  shell: ssh-keyscan -H ssh.github.com >> /etc/ssh/ssh_known_hosts
+  args:
+    executable: /bin/bash
+
+- name: Install pip
+  become: yes
+  apt:
+    name: python-pip
+    update_cache: yes
+    state: latest
+  when: ansible_distribution == "Ubuntu"
+
+- name: Update pip
+  become: yes
+  pip:
+    name: pip
+    state: latest

@@ -1,0 +1,3 @@
+instance_key_name: id_rsa
+ssh_config: ~/.ssh/config
+instance_private_key_file: ~/.ssh/id_rsa

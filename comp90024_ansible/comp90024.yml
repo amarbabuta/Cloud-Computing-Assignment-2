@@ -1,0 +1,114 @@
+- hosts: localhost
+  vars_files:
+    - variables/vars.yml
+  tasks:
+    - name: Install dependencies
+      include_role:
+        name: local-dependencies
+    - name: Create security groups
+      include_role:
+        name: openstack-security-group
+      vars:
+        state: present
+
+- hosts: localhost
+  tags: present
+  vars_files:
+    - variables/vars.yml
+  tasks:
+    - name: Create keypair
+      include_role:
+        name: openstack-keypair
+      vars:
+        state: present
+    - name: Provision vms
+      include_role:
+        name: openstack-instances
+      vars:
+        instance_name: "{{ item.name }}"
+        count: "{{ item.count}}"
+        vol_size: "{{ item.vol_size }}"
+        sec_groups: "{{ item.security_groups }}"
+        state: present
+      loop: "{{ instances }}"
+    - name:
+      meta: refresh_inventory
+
+- hosts: localhost
+  tags: absent
+  vars_files:
+    - variables/vars.yml
+  tasks:
+    - name: Remove hosts from known_hosts
+      known_hosts:
+        name: "{{ item }}"
+        state: absent
+      loop: "{{ groups['all'] | map('extract', hostvars, ['ansible_host']) | list }}"
+    - name: Delete vms
+      include_role:
+        name: openstack-instances
+      vars:
+        instance_name: "{{ item.name }}"
+        count: "{{ item.count}}"
+        vol_size: "{{ item.vol_size }}"
+        sec_groups: "{{ item.security_groups }}"
+        state: absent
+      loop: "{{ instances }}"
+    - name: Delete keypair
+      include_role:
+        name: openstack-keypair
+      vars:
+        state: absent
+    - name: Delete security groups
+      include_role:
+        name: openstack-security-group
+      vars:
+        state: absent
+
+- hosts: couchdb*
+  gather_facts: no
+  tags: present
+  vars_files:
+    - variables/vars.yml
+  tasks:
+    - name: Wait for connection
+      wait_for_connection:
+    - name: Gather facts
+      setup:
+    - name: Deploy couchdb
+      include_role:
+        name: openstack-couchdb
+
+- hosts: web*
+  gather_facts: no
+  tags: present
+  vars:
+    db_host: "{{ hostvars[groups['couchdb1'][0]]['ansible_host'] }}"
+  vars_files:
+    - variables/vars.yml
+    - variables/vault.yml
+  tasks:
+    - name: Wait for connection
+      wait_for_connection:
+    - name: Gather facts
+      setup:
+    - name: Deploy web
+      include_role:
+        name: openstack-web
+
+- hosts: harvester*
+  gather_facts: no
+  tags: present
+  vars:
+    db_host: "{{ hostvars[groups['couchdb1'][0]]['ansible_host'] }}"
+  vars_files:
+    - variables/vars.yml
+    - variables/vault.yml
+  tasks:
+    - name: Wait for connection
+      wait_for_connection:
+    - name: Gather facts
+      setup:
+    - name: Deploy harvester
+      include_role:
+        name: openstack-harvester

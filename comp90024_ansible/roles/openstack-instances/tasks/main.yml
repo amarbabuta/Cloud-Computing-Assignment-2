@@ -1,0 +1,6 @@
+- name: Create/Delete instances
+  include_role:
+    name: openstack-instance
+  loop: "{{ range(1, (count|int)+1) | list }}"
+  loop_control:
+    loop_var: index

@@ -1,0 +1,80 @@
+- name: Set num_harvesters
+  set_fact:
+    num_harvesters: "{{ ansible_play_hosts | length }}"
+- name: Set harvester_id
+  set_fact:
+    harvester_id: "{{ item[-1] }}"
+  loop: "{{ group_names }}"
+  when: item | regex_search('(harvester)')
+- name: Install common dependencies
+  include_role:
+    name: openstack-common
+- name: Install python3.7
+  become: yes
+  apt:
+    name: [python3.7, python3-pip]
+    update_cache: yes
+    state: latest
+- name: Update pip3
+  become: yes
+  pip:
+    name: pip
+    state: latest
+    executable: pip3
+- name: Install pipenv
+  become: yes
+  pip:
+    name: pipenv
+    state: latest
+    executable: pip3
+- name: Install npm
+  become: yes
+  apt:
+    name: npm
+    update_cache: yes
+    state: latest
+- name: Update npm
+  become: yes
+  npm:
+    name: npm
+    global: yes
+    state: latest
+- name: Install pm2
+  become: yes
+  npm:
+    name: pm2
+    global: yes
+- name: Clone harvester repo
+  git:
+    repo: git@github.com:omjadas/comp90024_harvester.git
+    dest: "{{ ansible_env.HOME }}/harvester"
+    clone: yes
+    force: yes
+    accept_hostkey: yes
+- name: Create config.json
+  template:
+    src: config.json
+    dest: "{{ ansible_env.HOME }}/harvester"
+- name: Wait for one minute
+  wait_for:
+    timeout: 60
+- name: Install harvester dependencies
+  shell: pipenv install
+  args:
+    chdir: "{{ ansible_env.HOME }}/harvester"
+    executable: /bin/bash
+- name: Enable pm2 at startup
+  become: yes
+  shell: pm2 startup
+  args:
+    executable: /bin/bash
+- name: Download corpora
+  shell: pipenv run corpora
+  args:
+    chdir: "{{ ansible_env.HOME }}/harvester"
+    executable: /bin/bash
+- name: Run harvester
+  shell: pm2 start "pipenv run start"
+  args:
+    chdir: "{{ ansible_env.HOME }}/harvester"
+    executable: /bin/bash

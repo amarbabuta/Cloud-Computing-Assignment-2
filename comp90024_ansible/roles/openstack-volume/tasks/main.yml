@@ -1,0 +1,14 @@
+- name: Create/Delete a volume
+  os_volume:
+    display_name: "{{ volume_name }}"
+    size: "{{ volume_size }}"
+    availability_zone: "{{ availability_zone }}"
+    wait: yes
+    timeout: 600
+    state: "{{ state }}"
+  register: vol
+
+- name: Print volume
+  debug:
+    msg: "{{ vol.id }} created with {{volume_size}}GB"
+  when: vol.id is defined

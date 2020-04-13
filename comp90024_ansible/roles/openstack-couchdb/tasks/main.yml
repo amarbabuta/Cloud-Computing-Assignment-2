@@ -1,0 +1,73 @@
+- name: Format volume
+  become: yes
+  filesystem:
+    fstype: ext4
+    dev: /dev/vdb
+- name: Mount volume
+  become: yes
+  mount:
+    path: /home/ubuntu/data
+    src: /dev/vdb
+    fstype: ext4
+    state: mounted
+- name: Install common dependencies
+  include_role:
+    name: openstack-common
+- name: Install docker pip
+  become: yes
+  pip:
+    name: docker
+    state: latest
+- name: Install docker.io
+  become: yes
+  apt:
+    name: docker.io
+    update_cache: yes
+    state: latest
+- name: Create docker service directory
+  become: yes
+  file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+- name: Add proxy to docker
+  become: yes
+  blockinfile:
+    path: /etc/systemd/system/docker.service.d/http-proxy.conf
+    create: yes
+    state: present
+    block: |
+      [Service]
+      Environment="HTTP_PROXY={{ proxy }}"
+- name: Systemctl daemon-reload
+  become: yes
+  systemd:
+    daemon_reload: yes
+- name: Restart docker
+  become: yes
+  systemd:
+    name: docker
+    state: restarted
+- name: Create etc directory
+  file:
+    path: /home/ubuntu/etc
+    state: directory
+- name: Copy couchdb ini file
+  copy:
+    src: couchdb.ini
+    dest: /home/ubuntu/etc/couchdb.ini
+- name: Download couchdb
+  become: yes
+  docker_image:
+    name: couchdb
+    tag: latest
+- name: Create couchdb container
+  become: yes
+  docker_container:
+    name: mycouchdb
+    image: couchdb
+    state: started
+    ports:
+      - "5984:5984"
+    volumes:
+      - "/home/ubuntu/etc:/opt/couchdb/etc/local.d"
+      - "/home/ubuntu/data:/opt/couchdb/data"

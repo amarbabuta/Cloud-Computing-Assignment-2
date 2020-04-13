@@ -1,0 +1,5 @@
+- name: Create/Delete a keypair
+  os_keypair:
+    name: "{{ instance_key_name }}"
+    public_key_file: "{{ instance_public_key_file.replace('~', lookup('env','HOME')) }}"
+    state: "{{ state }}"

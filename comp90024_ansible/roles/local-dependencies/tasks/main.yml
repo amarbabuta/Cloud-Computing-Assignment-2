@@ -1,0 +1,19 @@
+- name: Install pip
+  become: yes
+  apt:
+    name: python-pip
+    update_cache: yes
+    state: latest
+  when: ansible_distribution == "Ubuntu"
+
+- name: Update pip
+  become: yes
+  pip:
+    name: pip
+    state: latest
+
+- name: Install openstacksdk
+  become: yes
+  pip:
+    name: openstacksdk
+    state: latest

@@ -1,0 +1,57 @@
+- name: Install common dependencies
+  include_role:
+    name: openstack-common
+- name: Install node
+  become: yes
+  apt:
+    name: nodejs
+    update_cache: yes
+    state: latest
+- name: Install npm
+  become: yes
+  apt:
+    name: npm
+    update_cache: yes
+    state: latest
+- name: Update npm
+  become: yes
+  npm:
+    name: npm
+    global: yes
+    state: latest
+- name: Clone website repo
+  git:
+    repo: git@github.com:omjadas/comp90024_web.git
+    dest: "{{ ansible_env.HOME }}/web"
+    clone: yes
+    force: yes
+    accept_hostkey: yes
+- name: Create config.js
+  template:
+    src: config.js
+    dest: "{{ ansible_env.HOME }}/web/src"
+- name: Set npm http proxy
+  command: "npm config set proxy {{ proxy }}"
+- name: Set npm https proxy
+  command: "npm config set https-proxy {{ proxy }}"
+- name: Install packages
+  npm:
+    path: "{{ ansible_env.HOME }}/web"
+    production: yes
+- name: Build web app
+  shell: npm run build
+  args:
+    chdir: "{{ ansible_env.HOME }}/web"
+    executable: /bin/bash
+- name: Enable pm2 at startup
+  become: yes
+  shell: npx pm2 startup
+  args:
+    chdir: "{{ ansible_env.HOME }}/web"
+    executable: /bin/bash
+- name: Start web app
+  become: yes
+  shell: npm run start:prod
+  args:
+    chdir: "{{ ansible_env.HOME }}/web"
+    executable: /bin/bash
